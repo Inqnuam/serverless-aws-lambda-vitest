@@ -5,9 +5,9 @@
 # Installation
 
 ```bash
-yarn add -D serverless-aws-lambda-jest
+yarn add -D serverless-aws-lambda-vitest
 # or
-npm install -D serverless-aws-lambda-jest
+npm install -D serverless-aws-lambda-vitest
 ```
 
 ## Usage
