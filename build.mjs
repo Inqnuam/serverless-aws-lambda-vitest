@@ -20,7 +20,7 @@ const watch = {
 };
 
 await esbuild.build({
-  entryPoints: [`./src/index.ts`],
+  entryPoints: ["./src/index.ts"],
   platform: "node",
   format: "cjs",
   bundle: true,
