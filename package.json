@@ -1,6 +1,7 @@
 {
   "name": "serverless-aws-lambda-vitest",
-  "version": "1.0.3",
+  "description": "serverless-aws-lambda Test Driven Development with Vitest",
+  "version": "1.0.4",
   "main": "./dist/index.js",
   "typings": "./dist/index.d.ts",
   "author": "Inqnuam",
@@ -12,8 +13,8 @@
   },
   "devDependencies": {
     "@types/node": "^18.11.18",
-    "@types/serverless": "^3.12.9",
-    "serverless-aws-lambda": "^4.2.8",
+    "@types/serverless": "^3.12.10",
+    "serverless-aws-lambda": "^4.2.9",
     "typescript": "^4.9.5"
   },
   "scripts": {
@@ -23,6 +24,7 @@
   "keywords": [
     "serverless",
     "offline",
+    "local",
     "vitest",
     "test",
     "tdd",

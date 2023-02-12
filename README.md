@@ -5,7 +5,7 @@
 ### Requirements
 
 - [serverless-aws-lambda](https://github.com/Inqnuam/serverless-aws-lambda)
-- vitest
+- Vitest (must be installed inside your node_modules)
 
 # Installation
 
