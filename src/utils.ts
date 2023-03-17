@@ -20,10 +20,14 @@ export const handleInvoke = (lambda: any, event: any, info: any) => {
     if (foundSns) {
       foundSns.done = true;
     }
+  } else if (info.kind == "sqs") {
+    const foundSqs = lambda.sqs.find((x) => x.event == info.event);
+
+    if (foundSqs) {
+      foundSqs.done = true;
+    }
   } else if (info.kind == "ddb") {
-    const { TableName, filterPattern } = info.event;
-    // TODO: add filterPattern coverage
-    const foundDdb = lambda.ddb.find((x: any) => x.event.TableName == TableName);
+    const foundDdb = lambda.ddb.find((x: any) => x.event == info.event);
 
     if (foundDdb) {
       foundDdb.done = true;
@@ -44,7 +48,7 @@ export const calculateCoverage = (coverage: any) => {
   for (const [lambdaName, v] of Object.entries(coverage)) {
     result[lambdaName] = {};
 
-    const { alb, apg, s3, sns, ddb } = v as unknown as any;
+    const { alb, apg, s3, sns, sqs, ddb } = v as unknown as any;
 
     if (alb.length) {
       let albTotal = 0;
@@ -96,6 +100,16 @@ export const calculateCoverage = (coverage: any) => {
       };
       total += result[lambdaName].sns.total;
       done += result[lambdaName].sns.done;
+    }
+
+    if (sqs.length) {
+      result[lambdaName].sqs = {
+        total: sqs.length,
+        done: sqs.filter((x) => x.done).length,
+        events: sqs,
+      };
+      total += result[lambdaName].sqs.total;
+      done += result[lambdaName].sqs.done;
     }
 
     if (ddb.length) {

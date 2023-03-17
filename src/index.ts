@@ -48,6 +48,14 @@ const vitestPlugin = (options: IVitestPlugin) => {
             event: sns,
           });
         });
+
+        l.sqs.forEach((sqs) => {
+          lambdaConverage.sqs.push({
+            done: false,
+            event: sqs,
+          });
+        });
+
         l.ddb.forEach((ddb) => {
           lambdaConverage.ddb.push({
             done: false,

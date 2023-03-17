@@ -59,10 +59,11 @@ Supported events
 - DynamoDB Streams
 - S3
 - SNS
+- SQS
 
 ### Notes
 
 - serverless-aws-lambda's `LOCAL_PORT` env variable is injected into process.env of your test files which could be used to make offline request against the local server.
-- Set `oneshot` option to `true` to launch Integrations Tests and exit the process after the first test sequence. Node Process will exit with `0` code, or `1` if Jest tests fails.
+- Set `oneshot` option to `true` to launch Integrations Tests and exit the process after the first test sequence. Node Process will exit with `0` code, or `1` if Vitest tests fails.
   - It is also possible to delay exit process by passing `{delay: secondes}` to `oneshot`.
 - use `coverage` option to generate coverage result json file and svg badge.
