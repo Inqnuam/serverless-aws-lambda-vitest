@@ -8,3 +8,4 @@ jspm_packages
 **/.DS_Store
 .aws_lambda
 dist
+TODO.md

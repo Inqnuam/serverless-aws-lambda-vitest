@@ -8,6 +8,7 @@ import type { supportedService } from "./requestListener";
 
 // @ts-ignore
 import { actualDirName, vitestPath } from "resolvedPaths";
+
 const setupFile = `${actualDirName.slice(0, -5)}/resources/setup.ts`;
 
 let vite;
@@ -124,7 +125,7 @@ const vitestPlugin = (options: IVitestPlugin) => {
           }
 
           if (options.coverage.json) {
-            writeFileSync(`${outdir}/vitest-it-coverage.json`, JSON.stringify(coverageResult), { encoding: "utf-8" });
+            writeFileSync(`${outdir}/vitest-it-coverage.json`, JSON.stringify(coverageResult, null, 2), { encoding: "utf-8" });
           }
           if (options.coverage.badge) {
             writeFileSync(`${outdir}/vitest-it-coverage.svg`, generateBadge(coverageResult.coverage), { encoding: "utf-8" });
@@ -175,41 +176,52 @@ const vitestPlugin = (options: IVitestPlugin) => {
         if (!options?.configFile) {
           throw new Error("Vitest config file path is required");
         }
-
         const { startVitest } = await import(`file://${vitestPath}`);
-        vite = await startVitest(
-          "test",
-          [],
-          {
-            config: options.configFile,
-          },
-          {
-            define: {
-              LOCAL_PORT: port,
+
+        const startTestRunner = async () => {
+          vite = await startVitest(
+            "test",
+            [],
+            {
+              config: options.configFile,
             },
-            test: {
-              watchExclude: [".aws_lambda", "src", "serverless.yml", "node_modules", ".git"],
-              setupFiles: [setupFile],
-              env: {
-                LOCAL_PORT: String(port),
+            {
+              define: {
+                LOCAL_PORT: port,
               },
-            },
+              test: {
+                watchExclude: [".aws_lambda", "src", "serverless.yml", "node_modules", ".git"],
+                setupFiles: [setupFile],
+                env: {
+                  LOCAL_PORT: String(port),
+                },
+              },
+            }
+          );
+
+          isWatching = vite.config.watch;
+
+          if (options.oneshot) {
+            let timeout = 0;
+
+            if (typeof options.oneshot == "object" && options.oneshot.delay) {
+              timeout = options.oneshot.delay * 1000;
+            }
+
+            setTimeout(() => {
+              this.stop();
+              process.exit();
+            }, timeout);
           }
-        );
+        };
 
-        isWatching = vite.config.watch;
+        const ddbPlugin = this.options.plugins?.find((x) => x.name == "ddblocal-stream");
 
-        if (options.oneshot) {
-          let timeout = 0;
-
-          if (typeof options.oneshot == "object" && options.oneshot.delay) {
-            timeout = options.oneshot.delay * 1000;
-          }
-
-          setTimeout(() => {
-            this.stop();
-            process.exit();
-          }, timeout);
+        if (ddbPlugin) {
+          console.log("Waiting for DynamoDB Local Streams plugin to initialize...");
+          ddbPlugin.pluginData.onReady(startTestRunner);
+        } else {
+          await startTestRunner();
         }
       },
     },
@@ -239,7 +251,7 @@ declare global {
   /**
    * @param {any} identifier DynamoDB Item identifier.
    * Example: {id:{N: 12}}.
-   * @param {string} lambdaName consumer name if SNS will be consumed by multiple Lambdas.
+   * @param {string} lambdaName consumer name if Stream will be consumed by multiple Lambdas.
    */
   const dynamoResponse: (identifier: { [key: string]: any }, lambdaName?: string) => Promise<any>;
   /**

@@ -5,7 +5,7 @@ export interface IReqEvent {
   lambdaName?: string;
 }
 
-export type supportedService = "sqs" | "sns" | "ddb"; //| "documentDb";
+export type supportedService = "sqs" | "sns" | "ddb"; //| "documentDb" | "s3"
 export type IRegisterdRequest = {
   [key in supportedService]: IReqEvent[];
 };
