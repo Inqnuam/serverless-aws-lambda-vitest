@@ -44,6 +44,15 @@ global.snsResponse = async (id: string, lambdaName?: string) => {
   return __vitest_req(query);
 };
 
+global.s3Response = async (id: string, lambdaName?: string) => {
+  let query = `kind=s3&id=${id}`;
+  if (lambdaName) {
+    query += `&lambdaName=${lambdaName}`;
+  }
+
+  return __vitest_req(query);
+};
+
 global.dynamoResponse = async (identifier: { [key: string]: any }, lambdaName?: string) => {
   let sortedKeys = {};
   Object.keys(identifier)

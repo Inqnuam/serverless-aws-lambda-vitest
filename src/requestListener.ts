@@ -5,7 +5,7 @@ export interface IReqEvent {
   lambdaName?: string;
 }
 
-export type supportedService = "sqs" | "sns" | "ddb"; //| "documentDb" | "s3"
+export type supportedService = "sqs" | "sns" | "ddb" | "s3"; //| "documentDb"
 export type IRegisterdRequest = {
   [key in supportedService]: IReqEvent[];
 };
@@ -18,16 +18,18 @@ export class TestRequestListener extends EventEmitter {
   registeredRequests: IRegisterdRequest = {
     sqs: [],
     sns: [],
+    s3: [],
     ddb: [],
     // documentDb: [],
   };
   pendingRequests: IPendingRequests = {
     sqs: [],
     sns: [],
+    s3: [],
     ddb: [],
     // documentDb: [],
   };
-  support: Set<supportedService> = new Set(["sqs", "sns", "ddb"]);
+  support: Set<supportedService> = new Set(["sqs", "sns", "s3", "ddb"]);
   constructor() {
     super();
   }
@@ -45,6 +47,14 @@ export class TestRequestListener extends EventEmitter {
     if (foundIndex != -1) {
       const foundReq = this.pendingRequests.sns[foundIndex];
       this.pendingRequests.sns.splice(foundIndex, 1);
+      return foundReq;
+    }
+  };
+  #pendingS3 = (id: string, lambdaName?: string) => {
+    const foundIndex = this.pendingRequests.s3.findIndex((x) => (lambdaName ? x.lambdaName == lambdaName : true && x.input.Records?.find((r) => r.responseElements?.["x-amz-request-id"] == id)));
+    if (foundIndex != -1) {
+      const foundReq = this.pendingRequests.s3[foundIndex];
+      this.pendingRequests.s3.splice(foundIndex, 1);
       return foundReq;
     }
   };
@@ -75,6 +85,8 @@ export class TestRequestListener extends EventEmitter {
         return this.#pendingSqs(id, lambdaName);
       case "sns":
         return this.#pendingSns(id, lambdaName);
+      case "s3":
+        return this.#pendingS3(id, lambdaName);
       case "ddb":
         return this.#pendingDdb(id, lambdaName);
       default:
@@ -98,6 +110,17 @@ export class TestRequestListener extends EventEmitter {
     if (foundIndex != -1) {
       const id = this.registeredRequests.sns[foundIndex].id;
       this.registeredRequests.sns.splice(foundIndex, 1);
+
+      return id;
+    }
+  };
+
+  #registeredS3 = (lambdaName: string, input: any) => {
+    const foundIndex = this.registeredRequests.s3.findIndex((x: IReqEvent) => (x.lambdaName ? x.lambdaName == lambdaName : true && input.Records?.find((r) => r.responseElements?.["x-amz-request-id"] == x.id)));
+
+    if (foundIndex != -1) {
+      const id = this.registeredRequests.s3[foundIndex].id;
+      this.registeredRequests.s3.splice(foundIndex, 1);
 
       return id;
     }
@@ -131,6 +154,8 @@ export class TestRequestListener extends EventEmitter {
         return this.#registeredSqs(lambdaName, input);
       case "sns":
         return this.#registeredSns(lambdaName, input);
+      case "s3":
+        return this.#registeredS3(lambdaName, input);
       case "ddb":
         return this.#registeredDdb(lambdaName, input);
       default:
