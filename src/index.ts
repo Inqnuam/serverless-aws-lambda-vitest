@@ -180,26 +180,30 @@ const vitestPlugin = (options: IVitestPlugin) => {
         const { startVitest } = await import(`file://${vitestPath}`);
 
         const startTestRunner = async () => {
-          vite = await startVitest(
-            "test",
-            [],
-            {
-              config: options.configFile,
-            },
-            {
-              define: {
-                LOCAL_PORT: port,
+          try {
+            vite = await startVitest(
+              "test",
+              [],
+              {
+                config: options.configFile,
               },
-              test: {
-                watchExclude: [".aws_lambda", "src", "serverless.yml", "node_modules", ".git"],
-                setupFiles: [setupFile],
-                env: {
-                  LOCAL_PORT: String(port),
+              {
+                define: {
+                  LOCAL_PORT: port,
                 },
-              },
-            }
-          );
-
+                test: {
+                  watchExclude: [".aws_lambda", "src", "serverless.yml", "node_modules", ".git"],
+                  setupFiles: [setupFile],
+                  env: {
+                    LOCAL_PORT: String(port),
+                  },
+                },
+              }
+            );
+          } catch (error) {
+            console.error(error);
+            process.exit(1);
+          }
           isWatching = vite.config.watch;
 
           if (options.oneshot) {
@@ -209,10 +213,15 @@ const vitestPlugin = (options: IVitestPlugin) => {
               timeout = options.oneshot.delay * 1000;
             }
 
-            setTimeout(() => {
-              this.stop();
+            await new Promise((resolve) => setTimeout(resolve, timeout));
+            try {
+              await this.stop();
+              await vite.exit();
+            } catch (error) {
+              console.error(error);
+            } finally {
               process.exit();
-            }, timeout);
+            }
           }
         };
 
