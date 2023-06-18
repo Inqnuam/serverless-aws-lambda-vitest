@@ -20,6 +20,7 @@ interface IVitestPlugin {
     outDir: string;
     json?: boolean;
     badge?: boolean;
+    threshold?: number;
   };
 }
 
@@ -115,8 +116,13 @@ const vitestPlugin = (options: IVitestPlugin) => {
     onExit: function (code) {
       if (options.coverage) {
         if (options.coverage.outDir) {
+          const threshold = options.coverage.threshold;
           const coverageResult = calculateCoverage(coverage);
 
+          if (threshold && code == 0 && coverageResult.coverage < threshold) {
+            process.exitCode = 1;
+            console.log(`Covered events: ${coverageResult.coverage}%\nThreshold: ${threshold}%`);
+          }
           const outdir = path.resolve(options.coverage.outDir);
 
           try {

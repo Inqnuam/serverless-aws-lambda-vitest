@@ -43,6 +43,7 @@ module.exports = defineConfig({
         outDir: "./coverage/",
         json: true,
         badge: true,
+        threshold: 60,
       },
     }),
   ],
@@ -101,6 +102,6 @@ Supported events
 ### Notes
 
 - serverless-aws-lambda's `LOCAL_PORT` env variable is injected into process.env (also globally if option is enabled in vitest config) of your test files which could be used to make offline request against the local server.
-- Set `oneshot` option to `true` to launch Integrations Tests and exit the process after the first test sequence. Node Process will exit with `0` code, or `1` if Vitest tests fails.
+- Set `oneshot` option to `true` to launch Integrations Tests and exit the process after the first test sequence. Node Process will exit with `0` code, or `1` if Vitest tests fails or coverage threshold is not met.
   - It is also possible to delay exit process by passing `{delay: secondes}` to `oneshot`.
 - use `coverage` option to generate coverage result json file and svg badge.
