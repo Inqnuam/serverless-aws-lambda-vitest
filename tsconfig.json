@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "Bundler",
     "esModuleInterop": true,
     "target": "es2022",
     "allowJs": true,
     "declaration": true,
     "emitDeclarationOnly": true,
     "module": "ESNext",
-    "declarationDir": "./dist/"
+    "declarationDir": "./dist/",
+    "skipLibCheck": true
   },
   "include": ["./src/"]
 }

@@ -4,10 +4,11 @@ import path from "path";
 import { calculateCoverage, handleInvoke } from "./utils";
 import { generateBadge } from "./badge";
 import { TestRequestListener } from "./requestListener";
+import { startVitest } from "vitest/node";
 import type { supportedService } from "./requestListener";
 
 // @ts-ignore
-import { actualDirName, vitestPath } from "resolvedPaths";
+import { actualDirName } from "resolvedPaths";
 
 const setupFile = `${actualDirName.slice(0, -5)}/resources/setup.ts`;
 
@@ -183,7 +184,6 @@ const vitestPlugin = (options: IVitestPlugin) => {
         if (!options?.configFile) {
           throw new Error("Vitest config file path is required");
         }
-        const { startVitest } = await import(`file://${vitestPath}`);
 
         const startTestRunner = async () => {
           try {
@@ -233,7 +233,7 @@ const vitestPlugin = (options: IVitestPlugin) => {
 
         const ddbPlugin = this.options.plugins?.find((x: SlsAwsLambdaPlugin) => x.name == "ddblocal-stream") as SlsAwsLambdaPlugin;
 
-        if (ddbPlugin) {
+        if (ddbPlugin && !ddbPlugin.pluginData.isReady) {
           console.log("Waiting for DynamoDB Local Streams plugin to initialize...");
           ddbPlugin.pluginData.onReady(startTestRunner);
         } else {
