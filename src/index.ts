@@ -1,27 +1,42 @@
 import type { SlsAwsLambdaPlugin } from "serverless-aws-lambda/defineConfig";
-import { accessSync, mkdirSync, writeFileSync } from "fs";
+import { accessSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import path from "path";
 import { calculateCoverage, handleInvoke } from "./utils";
 import { generateBadge } from "./badge";
 import { TestRequestListener } from "./requestListener";
-import { startVitest } from "vitest/node";
+import { startVitest, createVitest, type Vitest, UserConfig } from "vitest/node";
 import type { supportedService } from "./requestListener";
+import os from "os";
 
 // @ts-ignore
 import { actualDirName } from "resolvedPaths";
 
 const setupFile = `${actualDirName.slice(0, -5)}/resources/setup.ts`;
 
-let vite;
+let vite: Vitest;
 
 interface IVitestPlugin {
   configFile: string;
-  oneshot?: boolean | { delay: number };
+  oneshot?:
+    | boolean
+    | {
+        /**
+         * delay process exit (in seconds)
+         *
+         * Usefull to wait for async events to process
+         */
+        delay: number;
+      };
   coverage?: {
     outDir: string;
     json?: boolean;
     badge?: boolean;
     threshold?: number;
+    /**
+     * Clean coverage results before running tests
+     * @default true
+     */
+    clean?: boolean;
   };
 }
 
@@ -30,10 +45,29 @@ const vitestPlugin = (options: IVitestPlugin) => {
   let isWatching: boolean = false;
   const eventListener = new TestRequestListener();
 
+  let coverageOutDir: string | undefined = undefined;
+  if (options.coverage) {
+    if (options.coverage.outDir) {
+      coverageOutDir = path.resolve(options.coverage.outDir);
+    } else {
+      console.warn("coverage 'outDir' is required");
+    }
+  }
+
   const config: SlsAwsLambdaPlugin = {
     name: "vitest-plugin",
     onInit: function () {
+      if (coverageOutDir) {
+        // this is useless but "NODE_V8_COVERAGE" env is required on main thread to make Workers threads produce coverage
+        // https://github.com/nodejs/node/issues/46378
+        process.env.NODE_V8_COVERAGE = os.tmpdir();
+      }
+
       this.lambdas.forEach((l) => {
+        if (coverageOutDir) {
+          l.setEnv("NODE_V8_COVERAGE", coverageOutDir);
+        }
+
         const lambdaConverage = {
           done: false,
           coverage: 0,
@@ -115,31 +149,31 @@ const vitestPlugin = (options: IVitestPlugin) => {
       });
     },
     onExit: function (code) {
-      if (options.coverage) {
-        if (options.coverage.outDir) {
-          const threshold = options.coverage.threshold;
-          const coverageResult = calculateCoverage(coverage);
+      if (coverageOutDir) {
+        const threshold = options.coverage.threshold;
+        const coverageResult = calculateCoverage(coverage);
 
-          if (threshold && code == 0 && coverageResult.coverage < threshold) {
-            process.exitCode = 1;
-            console.log(`Covered events: ${coverageResult.coverage}%\nThreshold: ${threshold}%`);
-          }
-          const outdir = path.resolve(options.coverage.outDir);
+        if (threshold && code == 0 && coverageResult.coverage < threshold) {
+          process.exitCode = 1;
+          console.log(`Covered events: ${coverageResult.coverage}%\nThreshold: ${threshold}%`);
+        }
 
-          try {
-            accessSync(outdir);
-          } catch (error) {
-            mkdirSync(outdir, { recursive: true });
-          }
+        try {
+          accessSync(coverageOutDir);
 
-          if (options.coverage.json) {
-            writeFileSync(`${outdir}/vitest-it-coverage.json`, JSON.stringify(coverageResult, null, 2), { encoding: "utf-8" });
+          if (options.coverage.clean == true || options.coverage.clean == undefined) {
+            rmSync(coverageOutDir, { recursive: true, force: true });
+            mkdirSync(coverageOutDir, { recursive: true });
           }
-          if (options.coverage.badge) {
-            writeFileSync(`${outdir}/vitest-it-coverage.svg`, generateBadge(coverageResult.coverage), { encoding: "utf-8" });
-          }
-        } else {
-          console.log("coverage 'outDir' is required");
+        } catch (error) {
+          mkdirSync(coverageOutDir, { recursive: true });
+        }
+
+        if (options.coverage.json) {
+          writeFileSync(path.join(coverageOutDir, "vitest-events-coverage.json"), JSON.stringify(coverageResult, null, 2), { encoding: "utf-8" });
+        }
+        if (options.coverage.badge) {
+          writeFileSync(path.join(coverageOutDir, "vitest-events-coverage.svg"), generateBadge(coverageResult.coverage), { encoding: "utf-8" });
         }
       }
     },
@@ -185,27 +219,39 @@ const vitestPlugin = (options: IVitestPlugin) => {
           throw new Error("Vitest config file path is required");
         }
 
+        const watch = !options.oneshot ? true : false;
+        const userConfig: UserConfig = {
+          config: options.configFile,
+        };
+
+        const overrideConfig: { define: Record<string, any>; test: UserConfig } = {
+          define: {
+            LOCAL_PORT: port,
+          },
+          test: {
+            watch,
+            environment: "node",
+            isolate: true,
+            pool: "forks",
+            coverage: {
+              enabled: false,
+              provider: "v8",
+            },
+            setupFiles: [setupFile],
+            env: {
+              LOCAL_PORT: String(port),
+            },
+          },
+        };
+
         const startTestRunner = async () => {
           try {
-            vite = await startVitest(
-              "test",
-              [],
-              {
-                config: options.configFile,
-              },
-              {
-                define: {
-                  LOCAL_PORT: port,
-                },
-                test: {
-                  watchExclude: [".aws_lambda", "src", "serverless.yml", "node_modules", ".git"],
-                  setupFiles: [setupFile],
-                  env: {
-                    LOCAL_PORT: String(port),
-                  },
-                },
-              }
-            );
+            if (!watch) {
+              vite = await createVitest("test", userConfig, overrideConfig);
+              await vite.start();
+            } else {
+              vite = await startVitest("test", [], userConfig, overrideConfig);
+            }
           } catch (error) {
             console.error(error);
             process.exit(1);
@@ -225,6 +271,7 @@ const vitestPlugin = (options: IVitestPlugin) => {
               await vite.exit();
             } catch (error) {
               console.error(error);
+              process.exit();
             } finally {
               process.exit();
             }
