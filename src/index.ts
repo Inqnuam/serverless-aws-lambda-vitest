@@ -58,6 +58,17 @@ const vitestPlugin = (options: IVitestPlugin) => {
     name: "vitest-plugin",
     onInit: function () {
       if (coverageOutDir) {
+        try {
+          accessSync(coverageOutDir);
+
+          if (options.coverage.clean == true || options.coverage.clean == undefined) {
+            rmSync(coverageOutDir, { recursive: true, force: true });
+            mkdirSync(coverageOutDir, { recursive: true });
+          }
+        } catch (error) {
+          mkdirSync(coverageOutDir, { recursive: true });
+        }
+
         // this is useless but "NODE_V8_COVERAGE" env is required on main thread to make Workers threads produce coverage
         // https://github.com/nodejs/node/issues/46378
         process.env.NODE_V8_COVERAGE = os.tmpdir();
@@ -156,17 +167,6 @@ const vitestPlugin = (options: IVitestPlugin) => {
         if (threshold && code == 0 && coverageResult.coverage < threshold) {
           process.exitCode = 1;
           console.log(`Covered events: ${coverageResult.coverage}%\nThreshold: ${threshold}%`);
-        }
-
-        try {
-          accessSync(coverageOutDir);
-
-          if (options.coverage.clean == true || options.coverage.clean == undefined) {
-            rmSync(coverageOutDir, { recursive: true, force: true });
-            mkdirSync(coverageOutDir, { recursive: true });
-          }
-        } catch (error) {
-          mkdirSync(coverageOutDir, { recursive: true });
         }
 
         if (options.coverage.json) {
